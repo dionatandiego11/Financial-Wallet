@@ -118,28 +118,6 @@ A lógica central para operações financeiras está encapsulada em `App\Service
     *   Middleware `auth` e `verified` protegem as rotas da carteira e do perfil.
     *   Middleware `admin` customizado (`App\Http\Middleware\IsAdminMiddleware.php`, registrado em `bootstrap/app.php`) protege as rotas administrativas (`/admin/*`). **Importante:** A lógica dentro do `IsAdminMiddleware` para identificar um administrador (ex: verificar e-mail ou um campo `is_admin`) precisa ser configurada conforme a necessidade do seu projeto.
 
-## Testes
-
-O projeto está configurado para usar PHPUnit. É recomendado configurar o SQLite em memória para testes rápidos e isolados.
-
-*   **Configurar `phpunit.xml` para testes em memória:**
-    ```xml
-    <php>
-        <env name="APP_ENV" value="testing"/>
-        <env name="BCRYPT_ROUNDS" value="4"/>
-        <env name="CACHE_DRIVER" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
-        <env name="MAIL_MAILER" value="array"/>
-        <env name="QUEUE_CONNECTION" value="sync"/>
-        <env name="SESSION_DRIVER" value="array"/>
-    </php>
-    ```
-*   **Executar todos os testes:**
-    ```bash
-    php artisan test
-    ```
-
 ## Como Usar a Aplicação
 
 1.  Após a instalação, acesse `http://localhost:8000`.
