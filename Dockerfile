@@ -90,20 +90,18 @@ COPY --from=builder /var/www/html/.env.example ./.env.example
 COPY --from=builder /var/www/html/artisan ./artisan
 COPY --from=builder /var/www/html/composer.json ./composer.json
 
-# Copiar banco SQLite 
+# Copiar banco SQLite
 COPY --from=builder /var/www/html/database/database.sqlite ./database/database.sqlite
 
 # Copiar configurações personalizadas
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Criar diretórios de log e garantir existência
-RUN mkdir -p /var/log/supervisor /var/log/nginx /run/nginx /run/php && \
+# Criar diretórios necessários para logs, run (nginx, php-fpm) e garantir existência e permissões
+# ALTERAÇÃO AQUI: Adicionado /opt/docker/var/run
+RUN mkdir -p /var/log/supervisor /var/log/nginx /run/nginx /run/php /opt/docker/var/run && \
     touch /var/log/nginx/access.log /var/log/nginx/error.log && \
-    chown -R www-data:www-data /run/nginx /run/php
-
-# Permissões corretas para storage, cache e logs
-RUN mkdir -p database && \
+    chown -R www-data:www-data /run/nginx /run/php /opt/docker/var/run && \
     chown -R www-data:www-data storage bootstrap/cache database && \
     chmod -R 775 storage bootstrap/cache database && \
     if [ -f database/database.sqlite ]; then \
