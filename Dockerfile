@@ -7,14 +7,14 @@ ARG USER_ID=1000
 ARG GROUP_ID=1000
 ARG USERNAME=laraveluser
 
-# Variaveis de Ambiente
+# Variáveis de ambiente
 ENV COMPOSER_ALLOW_SUPERUSER=1
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Diretorios de trabalho
+# Diretório de trabalho
 WORKDIR /var/www/html
 
-# Instalar dependencias do sistema (comuns para Laravel + SQLite + Node/NPM)
+# Instalar dependências do sistema (Laravel + SQLite + Node/NPM)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     unzip \
@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Instalar extensões PHP necessÃƒÂ¡rias
+# Instalar extensões PHP necessárias
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) gd \
     && docker-php-ext-install pdo pdo_sqlite zip bcmath opcache
@@ -37,44 +37,42 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 # Instalar Composer globalmente
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Criar ususario da aplicaÃ§Ã£o (para evitar rodar tudo como root no build)
-# Adicionado '|| true' aos comandos groupadd e useradd
-# para nÃ£o falhar se o grupo ou usuÃƒÂ¡rio jjÃ¡Â¡ existir durante o build.
+# Criar usuário da aplicação (evita rodar como root no build)
 RUN groupadd -g $GROUP_ID $USERNAME || true && \
     useradd -u $USER_ID -g $USERNAME -m -s /bin/bash $USERNAME || true
 
-# Copiar arquivos de dependencia primeiro para aproveitar o cache do Docker
+# Copiar arquivos de dependência PHP
 COPY --chown=$USERNAME:$USERNAME composer.json composer.lock ./
-# Instalar dependencias PHP
-# Use --no-dev para produÃƒÂ§ÃƒÂ£o
+
+# Instalar dependências PHP (sem dev para produção)
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
-# Copiar arquivos de dependencia do frontend
+# Copiar arquivos de dependência do frontend
 COPY --chown=$USERNAME:$USERNAME package.json package-lock.json ./
-# Instalar dependencias Node
+
+# Instalar dependências Node
 RUN npm ci
 
-# Copiar o restante do cÃ³digo da aplicaÃ§Ã£o
+# Copiar o restante do código da aplicação
 COPY --chown=$USERNAME:$USERNAME . .
 
-# Compilar assets para produÃƒÂ§ÃƒÂ£o
+# Compilar assets para produção
 RUN npm run build
 
-# Otimizar Laravel para produÃ§Ã£o
+# Otimizar Laravel para produção
 RUN php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache
 
 
 # --- Final Application Stage ---
-# Usando uma imagem Alpine para menor tamanho
+# Usando imagem Alpine para menor tamanho
 FROM php:8.2-fpm-alpine AS app
 
-# Diretorio de trabalho
+# Diretório de trabalho
 WORKDIR /var/www/html
 
-# Instalar dependencias de runtime (Nginx, Supervisor, libs SQLite)
-# www-data user/group jÃ¡, existe na imagem php-fpm-alpine
+# Instalar dependências de runtime (Nginx, Supervisor, SQLite)
 RUN apk update && apk add --no-cache \
     nginx \
     supervisor \
@@ -82,11 +80,10 @@ RUN apk update && apk add --no-cache \
     sqlite-dev \
     && rm -rf /var/cache/apk/*
 
-# Instalar extensÃµes PHP essenciais para runtime
+# Instalar extensões PHP essenciais para runtime
 RUN docker-php-ext-install pdo pdo_sqlite bcmath opcache
 
-# Copiar a aplicaÃ§Ãµes construida do estagio 'builder'
-# Copiar apenas o necessario para reduzir o tamanho
+# Copiar aplicação do estágio 'builder'
 COPY --from=builder /var/www/html/vendor ./vendor
 COPY --from=builder /var/www/html/public ./public
 COPY --from=builder /var/www/html/resources ./resources
@@ -97,32 +94,30 @@ COPY --from=builder /var/www/html/config ./config
 COPY --from=builder /var/www/html/.env.example ./.env.example
 COPY --from=builder /var/www/html/artisan ./artisan
 COPY --from=builder /var/www/html/composer.json ./composer.json
-# Se o arquivo database.sqlite for gerado pela aplicaÃ§Ã£o e nÃ£o existir no build, esta linha pode ser removida
-# ou condicionada. Se ele Ã© parte do cÃ³digo-base, mantenha.
+
+# Copiar banco SQLite se estiver disponível
 COPY --from=builder /var/www/html/database/database.sqlite ./database/database.sqlite
 
-# Copiar configuraÃ§Ãµes personalizadas
+# Copiar configurações personalizadas
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Criar diretÃƒÂ³rios de log e garantir existencia
+# Criar diretórios de log e garantir existência
 RUN mkdir -p /var/log/supervisor /var/log/nginx /run/nginx /run/php && \
     touch /var/log/nginx/access.log /var/log/nginx/error.log && \
     chown -R www-data:www-data /run/nginx /run/php
 
-# Definir permisspermissÃµesÃƒÂµes corretas para storage, cache e logs
-# Certificar que a pasta database existe antes de tentar dar permissÃƒÂ£o ao arquivo
+# Permissões corretas para storage, cache e logs
 RUN mkdir -p database && \
     chown -R www-data:www-data storage bootstrap/cache database && \
     chmod -R 775 storage bootstrap/cache database && \
-    # A permissÃ£o do arquivo sqlite ÃƒÂ© delicada, 664 pode ser suficiente se o arquivo jÃ¡, existir
-    # Se for criado pelo app, a permissÃƒÂ£o da pasta 775 deve permitir
-    if [ -f database/database.sqlite ]; then find database -type f -name '*.sqlite' -exec chmod 664 {} \; ; fi && \
+    if [ -f database/database.sqlite ]; then \
+        find database -type f -name '*.sqlite' -exec chmod 664 {} \; ; \
+    fi && \
     chown -R www-data:www-data /var/log/nginx /var/log/supervisor
 
-
-# Expor a porta 80 (usada pelo Nginx)
+# Expor porta 80 (Nginx)
 EXPOSE 80
 
-# Comando para iniciar o Supervisor (que iniciar Nginx e PHP-FPM)
+# Comando de inicialização via Supervisor (gerencia Nginx e PHP-FPM)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
