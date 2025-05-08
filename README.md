@@ -1,35 +1,30 @@
-# Financial Wallet - Laravel & SQLite
+# Financial Wallet - Laravel, SQLite & Docker
 
-![Laravel](https://img.shields.io/badge/Laravel-FF2D20?style=for-the-badge&logo=laravel&logoColor=white) ![PHP](https://img.shields.io/badge/PHP-777BB4?style=for-the-badge&logo=php&logoColor=white) ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-FF2D20?style=for-the-badge&logo=laravel&logoColor=white) ![PHP](https://img.shields.io/badge/PHP-777BB4?style=for-the-badge&logo=php&logoColor=white) ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white) ![Nginx](https://img.shields.io/badge/NGINX-009639?style=for-the-badge&logo=nginx&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
-Este projeto é uma aplicação de carteira financeira desenvolvida com PHP e Laravel, utilizando SQLite como banco de dados para simplicidade e portabilidade em ambientes de desenvolvimento. Ele permite que usuários cadastrados realizem transferências de saldo entre si e façam depósitos em suas próprias contas. As operações são passíveis de reversão.
+Este projeto é uma aplicação de carteira financeira desenvolvida com PHP e Laravel, utilizando SQLite como banco de dados. Ele permite que usuários cadastrados realizem transferências de saldo entre si e façam depósitos em suas próprias contas. As operações são passíveis de reversão.
+
+Este repositório inclui uma configuração Docker completa usando Nginx, PHP-FPM e Supervisor para criar um ambiente conteinerizado para a aplicação.
 
 ## Funcionalidades Principais
 
-*   **Cadastro de Usuários:** Permite que novos usuários criem suas contas.
-*   **Autenticação:** Sistema de login seguro para acesso à carteira (via Laravel Breeze). Inclui links "Esqueci minha senha" e "Registrar" na tela de login.
-*   **Gestão de Saldo:** Cada usuário possui um saldo em sua carteira.
-*   **Página Inicial (Welcome):** Página de entrada com descrição da aplicação e CTAs para Login/Registro.
-*   **Dashboard:** Exibe o saldo atual do usuário e um histórico paginado de transações.
-*   **Depósito:** Usuários podem depositar fundos em suas contas através de um formulário dedicado.
-    *   Depósitos são adicionados ao saldo, mesmo que este esteja negativo.
-*   **Transferência:** Usuários podem enviar dinheiro para outros usuários cadastrados via e-mail.
-    *   Validação de saldo suficiente antes de realizar a transferência.
-    *   Impede transferência para o próprio usuário.
-*   **Histórico de Transações:** Todas as operações (depósito, transferência enviada/recebida, reversão) são registradas e exibidas no dashboard.
-*   **Reversão de Operações:** Depósitos e transferências (tanto enviadas quanto recebidas) podem ser revertidos diretamente pelo dashboard (sujeito a regras de autorização).
-*   **Edição de Perfil:** Usuários podem atualizar suas informações de perfil e senha (via funcionalidade do Breeze).
-*   **Listagem de Usuários (Admin):** Uma seção administrativa básica (`/admin/users`) para visualizar todos os usuários cadastrados (protegida por middleware `admin`).
+*   Cadastro de Usuários e Autenticação (Laravel Breeze).
+*   Página Inicial descritiva com CTAs.
+*   Dashboard com saldo e histórico de transações paginado.
+*   Operações de Depósito e Transferência entre usuários.
+*   Reversão de Transações a partir do dashboard.
+*   Edição de Perfil do usuário.
+*   Seção Administrativa (`/admin/users`) para listar usuários (protegida por middleware `admin`).
 
-## Requisitos do Sistema
+## Requisitos
 
-*   PHP >= 8.1 (Verifique `composer.json` para a versão exata suportada pelo seu Laravel)
-*   Composer 2.x
-*   Node.js (v18+) & NPM
-*   Extensão PHP para SQLite (`php-sqlite3` ou similar, geralmente habilitada por padrão na maioria das instalações PHP modernas)
-*   Um servidor web (Opcional para desenvolvimento, pois `php artisan serve` pode ser usado)
+*   Docker e Docker Compose (recomendado) ou apenas Docker Engine.
+*   Git (para clonar o repositório).
+*   Um navegador web.
 
-## Instalação e Configuração (Ambiente de Desenvolvimento com SQLite)
+## Instalação e Execução com Docker
+
+Esta é a forma recomendada para executar a aplicação, pois encapsula todas as dependências.
 
 1.  **Clonar o Repositório:**
     ```bash
@@ -37,98 +32,100 @@ Este projeto é uma aplicação de carteira financeira desenvolvida com PHP e La
     cd financial-wallet
     ```
 
-2.  **Instalar Dependências do PHP:**
-    ```bash
-    composer install
-    ```
-
-3.  **Copiar Arquivo de Ambiente:**
+2.  **Copiar Arquivo de Ambiente:**
+    O Dockerfile utilizará as configurações padrão, mas é bom ter o `.env` localmente para referência ou futuras customizações.
     ```bash
     cp .env.example .env
     ```
+    *Nota: Para esta configuração Docker específica com SQLite, as variáveis `DB_*` no `.env` não são estritamente necessárias para o build/run inicial, pois a conexão SQLite é configurada para usar o arquivo dentro do container/volume.*
 
-4.  **Gerar Chave da Aplicação:**
+3.  **Criar Arquivo de Banco de Dados SQLite:**
+    Embora o Laravel possa criar o arquivo, é mais seguro garantir que ele exista antes do build ou do primeiro run com volume.
     ```bash
-    php artisan key:generate
+    mkdir -p database
+    touch database/database.sqlite
     ```
 
-5.  **Configurar para SQLite:**
-    *   Edite o arquivo `.env`.
-    *   Certifique-se de que `DB_CONNECTION` está definido como `sqlite`:
-        ```env
-        DB_CONNECTION=sqlite
-        ```
-    *   **Banco de Dados SQLite:**
-        *   Você pode deixar a linha `DB_DATABASE` comentada ou em branco. Por padrão, o Laravel criará (ou usará) um arquivo chamado `database.sqlite` dentro da pasta `database/`.
-        *   Para garantir, você pode criar o arquivo manualmente antes de migrar:
-            ```bash
-            touch database/database.sqlite
-            ```
-        *   Se preferir especificar um caminho absoluto, use:
-            ```env
-            # Exemplo: DB_DATABASE=/caminho/completo/para/seu/banco.sqlite
-            ```
-
-6.  **Executar Migrações do Banco de Dados:**
-    Este comando criará as tabelas `users`, `transactions`, `password_reset_tokens`, `failed_jobs`, `personal_access_tokens`, etc., no seu arquivo SQLite.
+4.  **Construir a Imagem Docker:**
+    Execute este comando na raiz do projeto (onde está o `Dockerfile`).
     ```bash
-    php artisan migrate
+    sudo docker build -t financial-wallet-app .
     ```
-    *(Nota: Se você receber um erro informando que o banco de dados não existe, verifique se o arquivo `database.sqlite` foi criado na pasta `database/` ou se o Laravel tem permissão de escrita nessa pasta).*
+    *(Use `sudo` se seu usuário não pertencer ao grupo `docker`. O nome `financial-wallet-app` é um exemplo).*
+    *Nota: Se você encontrar erros de "no space left on device", limpe o espaço do Docker usando `sudo docker system prune -a -f --volumes`.*
 
-7.  **(Opcional) Popular o Banco:**
-    Se você criou Seeders para dados iniciais:
+5.  **Executar o Container Docker:**
     ```bash
-    php artisan db:seed
+    sudo docker run -d -p 8080:80 \
+           --name wallet-container \
+           -v "$(pwd)/database":/var/www/html/database \
+           financial-wallet-app
     ```
+    *   `-d`: Executa o container em segundo plano.
+    *   `-p 8080:80`: Mapeia a porta 8080 do seu computador para a porta 80 do container (onde o Nginx está escutando). Acesse a aplicação em `http://localhost:8080`.
+    *   `--name wallet-container`: Nomeia o container para facilitar o gerenciamento (`docker stop wallet-container`, `docker logs wallet-container`, etc.).
+    *   `-v "$(pwd)/database":/var/www/html/database`: **Essencial para SQLite!** Monta a pasta `database` local dentro do container. Isso garante que o arquivo `database.sqlite` seja persistido no seu computador local, mesmo que o container seja removido e recriado.
+    *   `financial-wallet-app`: O nome da imagem Docker que você construiu na etapa anterior.
 
-8.  **Instalar Dependências do Node.js:**
+6.  **Executar Migrações (Dentro do Container):**
+    Após o container estar rodando, você precisa executar as migrações do Laravel *dentro* dele para criar as tabelas no arquivo SQLite.
     ```bash
-    npm install
+    sudo docker exec wallet-container php artisan migrate --force
     ```
+    *   `docker exec wallet-container`: Executa um comando dentro do container chamado `wallet-container`.
+    *   `php artisan migrate`: O comando do Laravel para rodar as migrações.
+    *   `--force`: É recomendado em scripts ou ambientes não interativos para evitar perguntas de confirmação (especialmente em produção, mas útil aqui também).
 
-9.  **Compilar Assets e Manter em Desenvolvimento:**
-    Abra um **novo terminal** e mantenha este comando rodando enquanto desenvolve. Ele compila o CSS/JS e atualiza automaticamente quando você faz alterações nos arquivos de front-end.
-    ```bash
-    npm run dev
-    ```
-    *(Para deploy em produção, você usaria `npm run build` uma única vez).*
+7.  **Acessar a Aplicação:**
+    Abra seu navegador e vá para `http://localhost:8080`.
 
-10. **Iniciar o Servidor de Desenvolvimento:**
-    Em outro terminal (diferente do `npm run dev`):
-    ```bash
-    php artisan serve
+## Instalação e Configuração (Ambiente de Desenvolvimento Local - Sem Docker)
+
+Se preferir rodar localmente sem Docker:
+
+1.  **Requisitos:** PHP, Composer, Node/NPM, Extensão PHP SQLite.
+2.  Clone o repositório: `git clone ... && cd ...`
+3.  Instale dependências PHP: `composer install`
+4.  Copie `.env.example` para `.env`: `cp .env.example .env`
+5.  Gere a chave: `php artisan key:generate`
+6.  Configure `.env` para SQLite e crie o arquivo:
+    ```env
+    DB_CONNECTION=sqlite
     ```
-    A aplicação estará acessível, por padrão, em `http://localhost:8000`.
+    ```bash
+    touch database/database.sqlite
+    ```
+7.  Rode as migrações: `php artisan migrate`
+8.  Instale dependências Node: `npm install`
+9.  Compile assets e mantenha rodando: `npm run dev` (em um terminal)
+10. Inicie o servidor Laravel: `php artisan serve` (em outro terminal)
+11. Acesse `http://localhost:8000`.
+
+## Configuração do Middleware de Admin
+
+A rota `/admin/users` é protegida pelo middleware `admin`. Para que um usuário tenha acesso:
+
+1.  **Defina a Lógica do Admin:** Edite o arquivo `app/Http/Middleware/IsAdminMiddleware.php`. Modifique a condição `if (...)` para identificar corretamente seus usuários administradores. Exemplo (usando e-mail):
+    ```php
+    // Dentro do método handle()
+    if (Auth::check() && Auth::user()->email === 'seu-email-admin@example.com') {
+        return $next($request);
+    }
+    ```
+    Ou, se você adicionou um campo `is_admin` (BOOLEAN) à tabela `users`:
+    ```php
+    // Dentro do método handle()
+    if (Auth::check() && Auth::user()->is_admin) { // Certifique-se de migrar se adicionar o campo
+        return $next($request);
+    }
+    ```
+2.  **Crie/Modifique o Usuário Admin:** Certifique-se de que existe um usuário no banco de dados que corresponda à condição definida acima. Você pode usar o registro normal ou criar via `php artisan tinker` (se rodando localmente) ou `docker exec wallet-container php artisan tinker` (se rodando com Docker).
 
 ## Estrutura do Banco de Dados (SQLite)
 
-*   **`users`:** Armazena informações do usuário. Campo chave: `balance` (REAL/NUMERIC).
-*   **`transactions`:** Registra todas as operações financeiras. Campos chave: `type` (TEXT), `status` (TEXT), `amount` (REAL/NUMERIC), `related_user_id` (INTEGER, nullable), `original_transaction_id` (INTEGER, nullable).
+*   **`users`:** `id`, `name`, `email`, `password`, `balance` (REAL/NUMERIC), `is_admin` (BOOLEAN, opcional), `timestamps`.
+*   **`transactions`:** `id`, `user_id`, `type` (TEXT), `amount` (REAL/NUMERIC), `related_user_id` (INTEGER, nullable), `original_transaction_id` (INTEGER, nullable), `description` (TEXT, nullable), `status` (TEXT), `timestamps`.
 *   **Outras tabelas:** Padrão do Laravel/Breeze/Sanctum.
-
-## Lógica de Negócios Principal (`WalletService`)
-
-A lógica central para operações financeiras está encapsulada em `App\Services\WalletService.php`. Este serviço garante a consistência dos dados usando transações de banco de dados (`DB::transaction()`) para todas as operações críticas (depósito, transferência, reversão).
-
-## Autenticação e Autorização
-
-*   **Autenticação:** Utiliza o **Laravel Breeze** (stack Blade + Alpine.js) para todo o fluxo de autenticação (registro, login, recuperação de senha, verificação de e-mail - se habilitada).
-*   **Autorização:**
-    *   Middleware `auth` e `verified` protegem as rotas da carteira e do perfil.
-    *   Middleware `admin` customizado (`App\Http\Middleware\IsAdminMiddleware.php`, registrado em `bootstrap/app.php`) protege as rotas administrativas (`/admin/*`). **Importante:** A lógica dentro do `IsAdminMiddleware` para identificar um administrador (ex: verificar e-mail ou um campo `is_admin`) precisa ser configurada conforme a necessidade do seu projeto.
-
-## Como Usar a Aplicação
-
-1.  Após a instalação, acesse `http://localhost:8000`.
-2.  Clique em "Register" ou acesse `http://localhost:8000/register` para criar uma conta. Crie pelo menos duas contas para testar as transferências.
-3.  Faça login. Você será redirecionado para o Dashboard.
-4.  Use os botões "Deposit Funds" e "Transfer Funds".
-5.  Verifique o histórico de transações.
-6.  Tente reverter transações clicando no botão "Reverse".
-7.  Edite seu perfil em `/profile`.
-8.  Para acessar a área administrativa (após configurar o `IsAdminMiddleware` e logar como admin), vá para `/admin/users`.
-
 
 ## Licença
 

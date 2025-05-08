@@ -41,20 +41,15 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN groupadd -g $GROUP_ID $USERNAME || true && \
     useradd -u $USER_ID -g $USERNAME -m -s /bin/bash $USERNAME || true
 
-# Copiar arquivos de dependência PHP
-COPY --chown=$USERNAME:$USERNAME composer.json composer.lock ./
+# Copiar o restante do código da aplicação (INCLUINDO artisan)
+# Esta linha foi movida para CIMA do composer install
+COPY --chown=$USERNAME:$USERNAME . .
 
-# Instalar dependências PHP (sem dev para produção)
+# Instalar dependências PHP (sem dev para produção) - Agora o artisan existe
 RUN composer install --no-interaction --optimize-autoloader --no-dev
-
-# Copiar arquivos de dependência do frontend
-COPY --chown=$USERNAME:$USERNAME package.json package-lock.json ./
 
 # Instalar dependências Node
 RUN npm ci
-
-# Copiar o restante do código da aplicação
-COPY --chown=$USERNAME:$USERNAME . .
 
 # Compilar assets para produção
 RUN npm run build
@@ -95,7 +90,7 @@ COPY --from=builder /var/www/html/.env.example ./.env.example
 COPY --from=builder /var/www/html/artisan ./artisan
 COPY --from=builder /var/www/html/composer.json ./composer.json
 
-# Copiar banco SQLite se estiver disponível
+# Copiar banco SQLite 
 COPY --from=builder /var/www/html/database/database.sqlite ./database/database.sqlite
 
 # Copiar configurações personalizadas
