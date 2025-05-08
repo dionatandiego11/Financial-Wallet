@@ -79,7 +79,7 @@ RUN apk update && apk add --no-cache \
 RUN docker-php-ext-install pdo pdo_sqlite bcmath opcache
 
 # Copia arquivos da aplicação gerados na fase 'builder'
-# Agora incluindo toda a pasta bootstrap
+COPY --from=builder /var/www/html/app ./app
 COPY --from=builder /var/www/html/vendor ./vendor
 COPY --from=builder /var/www/html/public ./public
 COPY --from=builder /var/www/html/resources ./resources
