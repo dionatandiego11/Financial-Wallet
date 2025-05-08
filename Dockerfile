@@ -1,8 +1,8 @@
-# --- Build Stage ---
-# Usando uma imagem oficial do PHP com FPM como base
+# --- Fase de Build ---
+# Usa imagem oficial do PHP com FPM como base
 FROM php:8.2-fpm AS builder
 
-# Argumentos (podem ser alterados no build)
+# Argumentos configuráveis no momento do build
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 ARG USERNAME=laraveluser
@@ -11,10 +11,10 @@ ARG USERNAME=laraveluser
 ENV COMPOSER_ALLOW_SUPERUSER=1
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Diretório de trabalho
+# Define o diretório de trabalho
 WORKDIR /var/www/html
 
-# Instalar dependências do sistema (Laravel + SQLite + Node/NPM)
+# Instala dependências do sistema (Laravel + SQLite + Node/NPM)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     unzip \
@@ -29,45 +29,45 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Instalar extensões PHP necessárias
+# Instala extensões PHP necessárias
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) gd \
     && docker-php-ext-install pdo pdo_sqlite zip bcmath opcache
 
-# Instalar Composer globalmente
+# Copia o Composer globalmente
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Criar usuário da aplicação (evita rodar como root no build)
+# Cria usuário da aplicação (evita rodar como root durante o build)
 RUN groupadd -g $GROUP_ID $USERNAME || true && \
     useradd -u $USER_ID -g $USERNAME -m -s /bin/bash $USERNAME || true
 
-# Copiar o restante do código da aplicação (INCLUINDO artisan)
-# Esta linha foi movida para CIMA do composer install
+# Copia o código-fonte da aplicação (inclui artisan, .env.example, database.sqlite etc.)
+# Essa linha foi movida para antes do 'composer install' e 'npm ci'
 COPY --chown=$USERNAME:$USERNAME . .
 
-# Instalar dependências PHP (sem dev para produção) - Agora o artisan existe
+# Instala dependências PHP para produção (sem pacotes de desenvolvimento)
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
-# Instalar dependências Node
+# Instala dependências Node.js
 RUN npm ci
 
-# Compilar assets para produção
+# Compila os assets para produção
 RUN npm run build
 
-# Otimizar Laravel para produção
+# Otimiza a aplicação Laravel para produção
 RUN php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache
 
 
-# --- Final Application Stage ---
-# Usando imagem Alpine para menor tamanho
+# --- Fase Final da Aplicação ---
+# Usa imagem Alpine para reduzir o tamanho final
 FROM php:8.2-fpm-alpine AS app
 
-# Diretório de trabalho
+# Define o diretório de trabalho
 WORKDIR /var/www/html
 
-# Instalar dependências de runtime (Nginx, Supervisor, SQLite)
+# Instala dependências necessárias para execução (Nginx, Supervisor, SQLite)
 RUN apk update && apk add --no-cache \
     nginx \
     supervisor \
@@ -75,30 +75,32 @@ RUN apk update && apk add --no-cache \
     sqlite-dev \
     && rm -rf /var/cache/apk/*
 
-# Instalar extensões PHP essenciais para runtime
+# Instala extensões PHP essenciais para runtime
 RUN docker-php-ext-install pdo pdo_sqlite bcmath opcache
 
-# Copiar aplicação do estágio 'builder'
+# Copia arquivos da aplicação gerados na fase 'builder'
+# Agora incluindo toda a pasta bootstrap
 COPY --from=builder /var/www/html/vendor ./vendor
 COPY --from=builder /var/www/html/public ./public
 COPY --from=builder /var/www/html/resources ./resources
 COPY --from=builder /var/www/html/routes ./routes
 COPY --from=builder /var/www/html/storage ./storage
+COPY --from=builder /var/www/html/bootstrap ./bootstrap
 COPY --from=builder /var/www/html/bootstrap/cache ./bootstrap/cache
 COPY --from=builder /var/www/html/config ./config
 COPY --from=builder /var/www/html/.env.example ./.env.example
 COPY --from=builder /var/www/html/artisan ./artisan
 COPY --from=builder /var/www/html/composer.json ./composer.json
 
-# Copiar banco SQLite
+# Copia o banco SQLite (certifique-se de que o arquivo exista antes do build)
 COPY --from=builder /var/www/html/database/database.sqlite ./database/database.sqlite
 
-# Copiar configurações personalizadas
+# Copia configurações personalizadas
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Criar diretórios necessários para logs, run (nginx, php-fpm) e garantir existência e permissões
-# ALTERAÇÃO AQUI: Adicionado /opt/docker/var/run
+# Cria diretórios necessários para logs e PID, e ajusta permissões
+# Alteração: inclui /opt/docker/var/run para evitar erro de PID do PHP-FPM
 RUN mkdir -p /var/log/supervisor /var/log/nginx /run/nginx /run/php /opt/docker/var/run && \
     touch /var/log/nginx/access.log /var/log/nginx/error.log && \
     chown -R www-data:www-data /run/nginx /run/php /opt/docker/var/run && \
@@ -109,8 +111,9 @@ RUN mkdir -p /var/log/supervisor /var/log/nginx /run/nginx /run/php /opt/docker/
     fi && \
     chown -R www-data:www-data /var/log/nginx /var/log/supervisor
 
-# Expor porta 80 (Nginx)
+# Expõe a porta 80 (Nginx)
 EXPOSE 80
 
-# Comando de inicialização via Supervisor (gerencia Nginx e PHP-FPM)
+# Inicia Supervisor (gerencia Nginx e PHP-FPM)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
